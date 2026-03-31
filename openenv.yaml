@@ -1,0 +1,75 @@
+name: microgrid-rl-env
+version: "1.0.0"
+description: >
+  A real-world microgrid energy management environment.
+  An agent controls a battery, curtails flexible loads, and manages
+  grid import/export to minimize cost and prevent blackouts.
+
+api_base: "https://<your-hf-username>-microgrid-rl-env.hf.space"
+
+endpoints:
+  reset:
+    method: POST
+    path: /reset
+    body:
+      task_id: string
+      seed: integer
+  step:
+    method: POST
+    path: /step
+    body:
+      session_id: string
+      action:
+        battery_kw: float
+        curtail_fraction: float
+  state:
+    method: GET
+    path: /state/{session_id}
+  tasks:
+    method: GET
+    path: /tasks
+  grader:
+    method: POST
+    path: /grader
+    body:
+      session_id: string
+  baseline:
+    method: POST
+    path: /baseline
+    body:
+      state: object
+      task_id: string
+
+tasks:
+  - id: sunny_day
+    difficulty: easy
+    steps: 96
+  - id: volatile_market
+    difficulty: medium
+    steps: 96
+  - id: islanded_crisis
+    difficulty: hard
+    steps: 96
+
+action_space:
+  battery_kw:
+    type: float
+    range: [-max_charge_kw, max_charge_kw]
+  curtail_fraction:
+    type: float
+    range: [0.0, 1.0]
+
+reward:
+  type: dense
+  range: continuous
+  terminal: true
+
+grader:
+  output_range: [0.0, 1.0]
+  deterministic: true
+  components:
+    - cost_score
+    - blackout_score
+    - self_consumption_score
+    - clearance_score
+    - health_score
