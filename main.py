@@ -131,6 +131,7 @@ def reset(req: ResetRequest | None = None):
 def reset_get(task_id: Optional[str] = None, seed: int = 42):
 
     task_id = task_id or _default_task_id()
+
     config = load_task(task_id)
 
     env = MicrogridEnv(config)
