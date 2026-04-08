@@ -8,7 +8,12 @@ description: >
 
 api_base: "https://anirudhpatil-microgrid-rl-env.hf.space"
 
+# ─────────────────────────────────────────────
+# API ENDPOINTS
+# ─────────────────────────────────────────────
+
 endpoints:
+
   reset:
     methods: [GET, POST]
     path: /reset
@@ -18,11 +23,11 @@ endpoints:
     path: /step
 
   state:
-    method: GET
+    methods: [GET]
     path: /state/{session_id}
 
   tasks:
-    method: GET
+    methods: [GET]
     path: /tasks
 
   grader:
@@ -34,14 +39,20 @@ endpoints:
     path: /baseline
 
   baseline_run:
-    method: GET
+    methods: [GET]
     path: /baseline_run
 
   health:
-    method: GET
+    methods: [GET]
     path: /health
 
+
+# ─────────────────────────────────────────────
+# TASK DEFINITIONS
+# ─────────────────────────────────────────────
+
 tasks:
+
   - id: sunny_day
     difficulty: easy
     steps: 96
@@ -57,51 +68,119 @@ tasks:
     steps: 96
     description: Grid outage scenario with tight constraints
 
+
+# ─────────────────────────────────────────────
+# ACTION SPACE
+# ─────────────────────────────────────────────
+
 action_space:
   type: object
+
   properties:
+
     battery_kw:
       type: float
       min: -10.0
       max: 10.0
-      description: Battery charge (+) / discharge (-)
+      description: Battery charging (+) or discharging (-) power in kW
 
     curtail_fraction:
       type: float
       min: 0.0
       max: 1.0
-      description: Fraction of flexible load deferred
+      description: Fraction of flexible load deferred to later steps
+
+
+# ─────────────────────────────────────────────
+# OBSERVATION SPACE
+# ─────────────────────────────────────────────
 
 observation_space:
   type: object
+
   properties:
-    solar_kw: float
-    solar_forecast_kw: float
-    soc: float
-    battery_capacity_kwh: float
-    base_load_kw: float
-    flexible_load_kw: float
-    deferred_kwh: float
-    grid_available: boolean
-    spot_price: float
-    price_forecast: float
-    step: integer
-    total_steps: integer
+
+    solar_kw:
+      type: float
+      description: Current solar generation in kW
+
+    solar_forecast_kw:
+      type: float
+      description: Forecasted solar generation for next timestep
+
+    soc:
+      type: float
+      description: Battery state of charge (0–1)
+
+    battery_capacity_kwh:
+      type: float
+      description: Battery total capacity
+
+    base_load_kw:
+      type: float
+      description: Non-flexible load demand
+
+    flexible_load_kw:
+      type: float
+      description: Flexible load that may be deferred
+
+    deferred_kwh:
+      type: float
+      description: Accumulated deferred load
+
+    grid_available:
+      type: boolean
+      description: Whether the main grid is available
+
+    spot_price:
+      type: float
+      description: Electricity market price
+
+    price_forecast:
+      type: float
+      description: Forecasted electricity price
+
+    step:
+      type: integer
+      description: Current timestep
+
+    total_steps:
+      type: integer
+      description: Total episode length
+
+
+# ─────────────────────────────────────────────
+# REWARD
+# ─────────────────────────────────────────────
 
 reward:
   type: dense
+
   description: >
     Composite reward balancing cost minimization, blackout avoidance,
     renewable utilization, deferred load penalties, and battery constraints.
 
+
+# ─────────────────────────────────────────────
+# GRADER
+# ─────────────────────────────────────────────
+
 grader:
+
   output_range: [0.0, 1.0]
+
   deterministic: true
+
   components:
     - cost_efficiency
     - blackout_avoidance
     - solar_utilization
     - load_clearance
     - battery_health
+
+
+# ─────────────────────────────────────────────
+# ENVIRONMENT PROPERTIES
+# ─────────────────────────────────────────────
 
 deterministic: true
