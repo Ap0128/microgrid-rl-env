@@ -19,7 +19,7 @@ API_BASE_URL = os.getenv(
 
 MODEL_NAME = os.getenv(
     "MODEL_NAME",
-    "gpt-3.5-turbo"
+    "gpt-3.5-mini"
 )
 
 HF_TOKEN = os.getenv(
