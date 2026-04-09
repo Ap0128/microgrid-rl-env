@@ -12,7 +12,7 @@ from openai import OpenAI
 # ─────────────────────────────────────────────
 
 API_BASE_URL = os.getenv("API_BASE_URL")
-MODEL_NAME = os.getenv("MODEL_NAME")
+MODEL_NAME = "gpt-4o-mini"
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 if not API_BASE_URL:
