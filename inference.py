@@ -31,8 +31,8 @@ np.random.seed(42)
 # ------------------------------------------------
 
 client = OpenAI(
-    base_url=LLM_BASE_URL,
-    api_key=LLM_API_KEY
+    base_url=API_BASE_URL,
+    api_key=API_KEY
 )
 
 
