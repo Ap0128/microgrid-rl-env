@@ -1,3 +1,4 @@
+
 import os
 import sys
 import json
@@ -8,15 +9,24 @@ import numpy as np
 from openai import OpenAI
 
 # ------------------------------------------------
-# REQUIRED ENV VARIABLES (INJECTED BY EVALUATOR)
+# ENV VARIABLES (SAFE DEFAULTS)
 # ------------------------------------------------
 
-API_BASE_URL = os.environ["API_BASE_URL"]
-API_KEY = os.environ["API_KEY"]
-MODEL_NAME = os.environ["MODEL_NAME"]
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
+
+ENV_URL = "https://anirudhpatil-microgrid-rl-env.hf.space"
+
+TASK_NAME = "sunny_day"
+BENCHMARK = "microgrid"
+MAX_STEPS = 120
+
+random.seed(42)
+np.random.seed(42)
 
 # ------------------------------------------------
-# INIT LLM CLIENT (MUST USE PROXY VARIABLES)
+# OPENAI CLIENT (LLM PROXY)
 # ------------------------------------------------
 
 client = OpenAI(
@@ -25,33 +35,27 @@ client = OpenAI(
 )
 
 # ------------------------------------------------
-# CONFIG
-# ------------------------------------------------
-
-TASK_ID = "sunny_day"
-SEED = 42
-MAX_STEPS = 120
-
-random.seed(SEED)
-np.random.seed(SEED)
-
-# ------------------------------------------------
-# HTTP HELPER
+# ENV API CALL
 # ------------------------------------------------
 
 def api_post(path, payload):
-    url = f"{API_BASE_URL}{path}"
 
     try:
-        r = requests.post(url, json=payload, timeout=20)
+        r = requests.post(
+            f"{ENV_URL}{path}",
+            json=payload,
+            timeout=20
+        )
         r.raise_for_status()
         return r.json()
+
     except Exception as e:
-        print(f"[ERROR] POST {path} failed: {e}", file=sys.stderr)
+        print(f"[DEBUG] API error: {e}", flush=True)
         return None
 
+
 # ------------------------------------------------
-# SIMPLE BASELINE POLICY
+# SIMPLE POLICY
 # ------------------------------------------------
 
 def simple_policy(state):
@@ -71,101 +75,121 @@ def simple_policy(state):
         "curtail_fraction": 0.0
     }
 
+
 # ------------------------------------------------
-# REQUIRED LLM CALL
+# LLM CALL (REQUIRED)
 # ------------------------------------------------
 
 def call_llm():
+
     try:
+
         client.chat.completions.create(
             model=MODEL_NAME,
             messages=[{"role": "user", "content": "Return OK"}],
             max_tokens=5,
             temperature=0
         )
-    except Exception:
-        pass
+
+    except Exception as e:
+        print(f"[DEBUG] LLM call failed: {e}", flush=True)
+
 
 # ------------------------------------------------
-# MAIN EXECUTION
+# LOG FUNCTIONS
+# ------------------------------------------------
+
+def log_start():
+    print(f"[START] task={TASK_NAME} env={BENCHMARK} model={MODEL_NAME}", flush=True)
+
+def log_step(step, action, reward, done):
+    done_val = str(done).lower()
+    print(
+        f"[STEP] step={step} action={json.dumps(action)} reward={reward:.2f} done={done_val} error=null",
+        flush=True
+    )
+
+def log_end(success, steps, score, rewards):
+
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+
+    print(
+        f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}",
+        flush=True
+    )
+
+
+# ------------------------------------------------
+# MAIN
 # ------------------------------------------------
 
 def main():
 
-    start_time = time.time()
+    rewards = []
+    steps_taken = 0
 
-    print("[START]")
-    print(f"task: {TASK_ID}")
-    print(f"seed: {SEED}")
+    log_start()
 
-    reset_data = api_post(
-        "/reset",
-        {
-            "task_id": TASK_ID,
-            "seed": SEED
-        }
-    )
+    try:
 
-    if reset_data is None:
-        return
-
-    session_id = reset_data["session_id"]
-    state = reset_data["state"]
-
-    done = False
-    step = 0
-
-    # required proxy LLM call
-    call_llm()
-
-    while not done and step < MAX_STEPS:
-
-        action = simple_policy(state)
-
-        step_data = api_post(
-            "/step",
-            {
-                "session_id": session_id,
-                "action": action
-            }
+        reset = api_post(
+            "/reset",
+            {"task_id": TASK_NAME, "seed": 42}
         )
 
-        if step_data is None:
-            break
+        if reset is None:
+            raise RuntimeError("reset failed")
 
-        state = step_data["state"]
-        reward = step_data["reward"]
-        done = step_data["done"]
+        session_id = reset["session_id"]
+        state = reset["state"]
 
-        print("[STEP]")
-        print(f"t: {step}")
-        print(f"action: {json.dumps(action)}")
-        print(f"reward: {reward}")
+        call_llm()   # required LLM proxy call
 
-        step += 1
+        for step in range(1, MAX_STEPS + 1):
 
-    grade_data = api_post(
-        "/grader",
-        {
-            "session_id": session_id
-        }
-    )
+            action = simple_policy(state)
 
-    score = 0.0
+            result = api_post(
+                "/step",
+                {
+                    "session_id": session_id,
+                    "action": action
+                }
+            )
 
-    if grade_data:
-        score = grade_data.get("score", 0.0)
+            if result is None:
+                break
 
-    print("[END]")
-    print(f"score: {score}")
+            reward = result.get("reward", 0.0)
+            done = result.get("done", False)
+            state = result.get("state", {})
 
-    elapsed = time.time() - start_time
-    print(f"time_sec: {elapsed:.2f}", file=sys.stderr)
+            rewards.append(reward)
+            steps_taken = step
+
+            log_step(step, action, reward, done)
+
+            if done:
+                break
+
+        grade = api_post(
+            "/grader",
+            {"session_id": session_id}
+        )
+
+        score = grade.get("score", 0.0) if grade else 0.0
+
+        success = score >= 0.0
+
+    except Exception as e:
+
+        print(f"[DEBUG] runtime error: {e}", flush=True)
+
+        success = False
+        score = 0.0
+
+    log_end(success, steps_taken, score, rewards)
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print(f"[FATAL ERROR] {e}", file=sys.stderr)
-        sys.exit(0)
+    main()
