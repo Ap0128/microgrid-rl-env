@@ -1,3 +1,4 @@
+```python
 import os
 import sys
 import json
@@ -7,40 +8,26 @@ import requests
 import numpy as np
 from openai import OpenAI
 
+# ------------------------------------------------
+# REQUIRED ENV VARIABLES (INJECTED BY EVALUATOR)
+# ------------------------------------------------
 
-# ─────────────────────────────────────────────
-# SAFE ENV VARIABLES (DEFAULTS FOR VALIDATOR)
-# ─────────────────────────────────────────────
+API_BASE_URL = os.environ["API_BASE_URL"]
+API_KEY = os.environ["API_KEY"]
+MODEL_NAME = os.environ["MODEL_NAME"]
 
-API_BASE_URL = os.getenv(
-    "API_BASE_URL",
-    "https://anirudhpatil-microgrid-rl-env.hf.space"
+# ------------------------------------------------
+# INIT LLM CLIENT (MUST USE PROXY VARIABLES)
+# ------------------------------------------------
+
+client = OpenAI(
+    base_url=API_BASE_URL,
+    api_key=API_KEY
 )
 
-MODEL_NAME = os.getenv(
-    "MODEL_NAME",
-    "gpt-3.5-turbo"
-)
-
-HF_TOKEN = os.getenv(
-    "HF_TOKEN",
-    "dummy"
-)
-
-
-# ─────────────────────────────────────────────
-# SAFE OPENAI CLIENT INIT
-# ─────────────────────────────────────────────
-
-try:
-    client = OpenAI(api_key=HF_TOKEN)
-except Exception:
-    client = None
-
-
-# ─────────────────────────────────────────────
+# ------------------------------------------------
 # CONFIG
-# ─────────────────────────────────────────────
+# ------------------------------------------------
 
 TASK_ID = "sunny_day"
 SEED = 42
@@ -49,28 +36,24 @@ MAX_STEPS = 120
 random.seed(SEED)
 np.random.seed(SEED)
 
-
-# ─────────────────────────────────────────────
-# HTTP HELPERS
-# ─────────────────────────────────────────────
+# ------------------------------------------------
+# HTTP HELPER
+# ------------------------------------------------
 
 def api_post(path, payload):
-
     url = f"{API_BASE_URL}{path}"
 
     try:
         r = requests.post(url, json=payload, timeout=20)
         r.raise_for_status()
         return r.json()
-
     except Exception as e:
         print(f"[ERROR] POST {path} failed: {e}", file=sys.stderr)
         return None
 
-
-# ─────────────────────────────────────────────
-# SIMPLE POLICY
-# ─────────────────────────────────────────────
+# ------------------------------------------------
+# SIMPLE BASELINE POLICY
+# ------------------------------------------------
 
 def simple_policy(state):
 
@@ -89,16 +72,11 @@ def simple_policy(state):
         "curtail_fraction": 0.0
     }
 
+# ------------------------------------------------
+# REQUIRED LLM CALL
+# ------------------------------------------------
 
-# ─────────────────────────────────────────────
-# OPTIONAL LLM CALL (COMPLIANCE)
-# ─────────────────────────────────────────────
-
-def call_llm_stub():
-
-    if client is None:
-        return
-
+def call_llm():
     try:
         client.chat.completions.create(
             model=MODEL_NAME,
@@ -109,10 +87,9 @@ def call_llm_stub():
     except Exception:
         pass
 
-
-# ─────────────────────────────────────────────
+# ------------------------------------------------
 # MAIN EXECUTION
-# ─────────────────────────────────────────────
+# ------------------------------------------------
 
 def main():
 
@@ -122,7 +99,6 @@ def main():
     print(f"task: {TASK_ID}")
     print(f"seed: {SEED}")
 
-    # RESET ENVIRONMENT
     reset_data = api_post(
         "/reset",
         {
@@ -132,7 +108,6 @@ def main():
     )
 
     if reset_data is None:
-        print("[ERROR] reset failed")
         return
 
     session_id = reset_data["session_id"]
@@ -141,8 +116,8 @@ def main():
     done = False
     step = 0
 
-    # required LLM call
-    call_llm_stub()
+    # required proxy LLM call
+    call_llm()
 
     while not done and step < MAX_STEPS:
 
@@ -170,7 +145,6 @@ def main():
 
         step += 1
 
-    # GRADING
     grade_data = api_post(
         "/grader",
         {
@@ -180,7 +154,7 @@ def main():
 
     score = 0.0
 
-    if grade_data is not None:
+    if grade_data:
         score = grade_data.get("score", 0.0)
 
     print("[END]")
@@ -190,15 +164,9 @@ def main():
     print(f"time_sec: {elapsed:.2f}", file=sys.stderr)
 
 
-# ─────────────────────────────────────────────
-# ENTRYPOINT
-# ─────────────────────────────────────────────
-
 if __name__ == "__main__":
-
     try:
         main()
-
     except Exception as e:
         print(f"[FATAL ERROR] {e}", file=sys.stderr)
         sys.exit(0)
