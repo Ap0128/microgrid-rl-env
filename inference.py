@@ -8,6 +8,7 @@ import requests
 import numpy as np
 from openai import OpenAI
 
+
 # ------------------------------------------------
 # ENV VARIABLES (SAFE DEFAULTS)
 # ------------------------------------------------
@@ -30,9 +31,10 @@ np.random.seed(42)
 # ------------------------------------------------
 
 client = OpenAI(
-    base_url=API_BASE_URL,
-    api_key=API_KEY
+    base_url=LLM_BASE_URL,
+    api_key=LLM_API_KEY
 )
+
 
 # ------------------------------------------------
 # ENV API CALL
@@ -86,7 +88,9 @@ def call_llm():
 
         client.chat.completions.create(
             model=MODEL_NAME,
-            messages=[{"role": "user", "content": "Return OK"}],
+            messages=[
+                {"role": "user", "content": "Return OK"}
+            ],
             max_tokens=5,
             temperature=0
         )
