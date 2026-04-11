@@ -103,47 +103,33 @@ def health():
 
 
 # ─────────────────────────────────────────────
-# RESET (OPENENV VALIDATOR FIX)
+# RESET  (GET + POST — OpenEnv validator uses POST /reset with JSON body)
 # ─────────────────────────────────────────────
 
-@app.post("/grader", response_model=GradeResult)
-def grader(req: GraderRequest):
 
-    env = env_store.get(req.session_id)
-
-    if env is None:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    if not env.done:
-        raise HTTPException(status_code=400, detail="Episode not complete")
-
-    trajectory = env.get_trajectory()
-
-    result = grade(trajectory, env.config)
-
-    # ensure task-specific grading
-    result.breakdown["task_id"] = env.config.task_id
-
-    return result
-
-@app.get("/reset", response_model=ResetResponse)
-def reset_get(task_id: Optional[str] = None, seed: int = 42):
-
-    task_id = task_id or _default_task_id()
-
-    config = load_task(task_id)
-
+def _perform_reset(task_id: Optional[str], seed: int) -> ResetResponse:
+    tid = task_id or _default_task_id()
+    config = load_task(tid)
     env = MicrogridEnv(config)
     state = env.reset(seed=seed)
-
-    session_id = f"{task_id}_{seed}_{uuid.uuid4().hex[:6]}"
+    session_id = f"{tid}_{seed}_{uuid.uuid4().hex[:6]}"
     _add_session(session_id, env)
-
     return ResetResponse(
         session_id=session_id,
         state=state,
         task_info=config.summary(),
     )
+
+
+@app.get("/reset", response_model=ResetResponse)
+def reset_get(task_id: Optional[str] = None, seed: int = 42):
+    return _perform_reset(task_id, seed)
+
+
+@app.post("/reset", response_model=ResetResponse)
+def reset_post(req: ResetRequest):
+    # Empty JSON {} is valid: task_id defaults to None, seed to 42
+    return _perform_reset(req.task_id, req.seed)
 
 
 # ─────────────────────────────────────────────
@@ -215,7 +201,9 @@ def grader(req: GraderRequest):
 
     trajectory = env.get_trajectory()
 
-    return grade(trajectory, env.config)
+    result = grade(trajectory, env.config)
+    result.breakdown["task_id"] = env.config.task_id
+    return result
 
 
 @app.get("/grader", response_model=GradeResult)
