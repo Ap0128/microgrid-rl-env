@@ -127,8 +127,8 @@ def reset_get(task_id: Optional[str] = None, seed: int = 42):
 
 
 @app.post("/reset", response_model=ResetResponse)
-def reset_post(req: ResetRequest):
-    # Empty JSON {} is valid: task_id defaults to None, seed to 42
+def reset_post(req: ResetRequest = Body(default_factory=ResetRequest)):
+    # OpenEnv / hackathon checks may POST with no body; {} still works via defaults
     return _perform_reset(req.task_id, req.seed)
 
 
