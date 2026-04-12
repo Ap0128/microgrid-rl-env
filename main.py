@@ -102,6 +102,24 @@ def health():
     }
 
 
+@app.get("/tasks")
+def list_tasks():
+    """Task catalog for OpenEnv / hackathon validators (≥3 tasks with graders)."""
+    return [
+        {
+            "id": cfg.task_id,
+            "task_id": cfg.task_id,
+            "difficulty": cfg.difficulty,
+            "description": cfg.description,
+            "steps": cfg.total_steps,
+            "max_steps": cfg.total_steps,
+            "has_grader": True,
+            "grader": {"enabled": True, "deterministic": True},
+        }
+        for cfg in TASKS.values()
+    ]
+
+
 # ─────────────────────────────────────────────
 # RESET  (GET + POST — OpenEnv validator uses POST /reset with JSON body)
 # ─────────────────────────────────────────────

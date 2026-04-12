@@ -45,16 +45,28 @@ tasks:
     difficulty: easy
     steps: 96
     description: Stable solar generation and demand
+    has_grader: true
+    grader:
+      enabled: true
+      deterministic: true
 
   - id: volatile_market
     difficulty: medium
     steps: 96
     description: Highly volatile electricity prices
+    has_grader: true
+    grader:
+      enabled: true
+      deterministic: true
 
   - id: islanded_crisis
     difficulty: hard
     steps: 96
     description: Grid outage scenario with tight constraints
+    has_grader: true
+    grader:
+      enabled: true
+      deterministic: true
 
 
 action_space:
