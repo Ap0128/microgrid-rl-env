@@ -4,7 +4,7 @@ from collections import OrderedDict
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from env.microgrid import MicrogridEnv
 from env.models import MicrogridAction, GradeResult
@@ -89,6 +89,25 @@ class BaselineResponse(BaseModel):
     reasoning: str
 
 
+class TaskInfo(BaseModel):
+    """Shape expected by OpenEnv / hackathon task enumeration + grader checks."""
+
+    name: str
+    id: str
+    task_id: str
+    difficulty: str
+    description: str
+    steps: int
+    max_steps: int
+    score_range: List[float]
+    has_grader: bool = True
+    grader: Dict[str, Any]
+
+
+class TasksListResponse(BaseModel):
+    tasks: List[TaskInfo]
+
+
 # ─────────────────────────────────────────────
 # HEALTH
 # ─────────────────────────────────────────────
@@ -102,22 +121,37 @@ def health():
     }
 
 
-@app.get("/tasks")
+@app.get("/tasks", response_model=TasksListResponse)
 def list_tasks():
-    """Task catalog for OpenEnv / hackathon validators (≥3 tasks with graders)."""
-    return [
-        {
-            "id": cfg.task_id,
-            "task_id": cfg.task_id,
-            "difficulty": cfg.difficulty,
-            "description": cfg.description,
-            "steps": cfg.total_steps,
-            "max_steps": cfg.total_steps,
-            "has_grader": True,
-            "grader": {"enabled": True, "deterministic": True},
-        }
+    """Wrapped list — validators often read body.tasks, not a raw JSON array."""
+    items = [
+        TaskInfo(
+            name=cfg.task_id,
+            id=cfg.task_id,
+            task_id=cfg.task_id,
+            difficulty=cfg.difficulty,
+            description=cfg.description,
+            steps=cfg.total_steps,
+            max_steps=cfg.total_steps,
+            score_range=[0.0, 1.0],
+            has_grader=True,
+            grader={"enabled": True, "deterministic": True, "path": "/grader"},
+        )
         for cfg in TASKS.values()
     ]
+    return TasksListResponse(tasks=items)
+
+
+@app.get("/state/{session_id}")
+def get_state(session_id: str):
+    env = env_store.get(session_id)
+    if env is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {
+        "session_id": session_id,
+        "state": env._build_state().model_dump(),
+        "done": env.done,
+    }
 
 
 # ─────────────────────────────────────────────

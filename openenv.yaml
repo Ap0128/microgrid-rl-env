@@ -41,32 +41,47 @@ endpoints:
 
 tasks:
 
-  - id: sunny_day
+  - name: sunny_day
+    id: sunny_day
+    task_id: sunny_day
     difficulty: easy
     steps: 96
+    max_steps: 96
+    score_range: [0.0, 1.0]
     description: Stable solar generation and demand
     has_grader: true
     grader:
       enabled: true
       deterministic: true
+      path: /grader
 
-  - id: volatile_market
+  - name: volatile_market
+    id: volatile_market
+    task_id: volatile_market
     difficulty: medium
     steps: 96
+    max_steps: 96
+    score_range: [0.0, 1.0]
     description: Highly volatile electricity prices
     has_grader: true
     grader:
       enabled: true
       deterministic: true
+      path: /grader
 
-  - id: islanded_crisis
+  - name: islanded_crisis
+    id: islanded_crisis
+    task_id: islanded_crisis
     difficulty: hard
     steps: 96
+    max_steps: 96
+    score_range: [0.0, 1.0]
     description: Grid outage scenario with tight constraints
     has_grader: true
     grader:
       enabled: true
       deterministic: true
+      path: /grader
 
 
 action_space:

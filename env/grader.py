@@ -27,6 +27,11 @@ def compute_uncontrolled_cost(trajectory: list[StepRecord], config: TaskConfig) 
 def grade(trajectory: list[StepRecord], config: TaskConfig) -> GradeResult:
     dt = 0.25
     n = len(trajectory)
+    if n == 0:
+        return GradeResult(
+            score=0.0,
+            breakdown={"reason": "empty_trajectory"},
+        )
 
     # ── 1. Cost Score (0.30) ──────────────────────────────────────────
     baseline_cost = compute_uncontrolled_cost(trajectory, config)
