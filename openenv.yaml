@@ -1,3 +1,9 @@
+spec_version: 1
+type: space
+runtime: fastapi
+app: main:app
+port: 7860
+
 name: microgrid-rl-env
 version: "1.0.0"
 
@@ -50,10 +56,7 @@ tasks:
     score_range: [0.0, 1.0]
     description: Stable solar generation and demand
     has_grader: true
-    grader:
-      enabled: true
-      deterministic: true
-      path: /grader
+    grader: true
 
   - name: volatile_market
     id: volatile_market
@@ -64,10 +67,7 @@ tasks:
     score_range: [0.0, 1.0]
     description: Highly volatile electricity prices
     has_grader: true
-    grader:
-      enabled: true
-      deterministic: true
-      path: /grader
+    grader: true
 
   - name: islanded_crisis
     id: islanded_crisis
@@ -78,10 +78,7 @@ tasks:
     score_range: [0.0, 1.0]
     description: Grid outage scenario with tight constraints
     has_grader: true
-    grader:
-      enabled: true
-      deterministic: true
-      path: /grader
+    grader: true
 
 
 action_space:

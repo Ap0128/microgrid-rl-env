@@ -90,7 +90,7 @@ class BaselineResponse(BaseModel):
 
 
 class TaskInfo(BaseModel):
-    """Shape expected by OpenEnv / hackathon task enumeration + grader checks."""
+    """Hackathon validators often require ``grader`` to be the literal boolean ``true``."""
 
     name: str
     id: str
@@ -101,11 +101,12 @@ class TaskInfo(BaseModel):
     max_steps: int
     score_range: List[float]
     has_grader: bool = True
-    grader: Dict[str, Any]
+    grader: bool = True
 
 
 class TasksListResponse(BaseModel):
     tasks: List[TaskInfo]
+    count: int
 
 
 # ─────────────────────────────────────────────
@@ -121,9 +122,7 @@ def health():
     }
 
 
-@app.get("/tasks", response_model=TasksListResponse)
-def list_tasks():
-    """Wrapped list — validators often read body.tasks, not a raw JSON array."""
+def _tasks_payload() -> TasksListResponse:
     items = [
         TaskInfo(
             name=cfg.task_id,
@@ -135,11 +134,23 @@ def list_tasks():
             max_steps=cfg.total_steps,
             score_range=[0.0, 1.0],
             has_grader=True,
-            grader={"enabled": True, "deterministic": True, "path": "/grader"},
+            grader=True,
         )
         for cfg in TASKS.values()
     ]
-    return TasksListResponse(tasks=items)
+    return TasksListResponse(tasks=items, count=len(items))
+
+
+@app.get("/tasks", response_model=TasksListResponse)
+def list_tasks_get():
+    """Wrapped list — validators read ``body.tasks``; ``grader`` must be boolean ``true``."""
+    return _tasks_payload()
+
+
+@app.post("/tasks", response_model=TasksListResponse)
+def list_tasks_post():
+    """Some pipelines POST to enumerate tasks."""
+    return _tasks_payload()
 
 
 @app.get("/state/{session_id}")
